@@ -5,7 +5,8 @@ from setuptools import setup
 
 
 requirements = [
-    "requests"
+    "requests",
+    "pytest"
 ]
 
 setup(

@@ -5,4 +5,4 @@ __email__ = 'kshitij@loanzen.in'
 __version__ = '0.1.0'
 
 
-from .fastlane import *
+from .carpm import *
