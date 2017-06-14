@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
-from carpm import CarpmClient
+from carpm import CarpmClient, CarpmApiException
 import pytest
 
 carpm_client = CarpmClient("None", "None")
@@ -9,25 +9,25 @@ handle_webhook = carpm_client.handle_webhook
 convert_format = carpm_client.convert_format
 
 
-@pytest.mark.parametrize(
-    'event, method_called', [
-        ("Data Received", "on_inspection"),
-        ("Report Generation Failed", "on_report_failed"),
-        ("Report Generation Successful", "on_report")
-    ]
-)
 class TestCarpm(object):
     method_called = None
 
-    def on_report(self, inspector_email, registration_no, user_car_model_id):
+    def on_report(self, details):
         self.method_called = "on_report"
 
-    def on_inspection(self, inspector_email, registration_no):
+    def on_inspection(self, details):
         self.method_called = "on_inspection"
 
-    def on_report_failed(self, inspector_email, registration_no):
+    def on_report_failed(self, details):
         self.method_called = "on_report_failed"
 
+    @pytest.mark.parametrize(
+        'event, method_called', [
+            ("Data Received", "on_inspection"),
+            ("Report Generation Failed", "on_report_failed"),
+            ("Report Generation Successful", "on_report")
+        ]
+    )
     def test_handle_webhook(self, event, method_called):
         data = {
             "user_car_model_id": 17922,
@@ -37,6 +37,20 @@ class TestCarpm(object):
         }
         handle_webhook(data, {'INSPECTION_COMPLETE': self.on_inspection, 'REPORT_GENERATED': self.on_report, 'REPORT_FAILED': self.on_report_failed})
         assert self.method_called == method_called
+
+    @pytest.mark.parametrize(
+        'registration_no, user_car_model_id, inspector_email, event', [
+            (None, 1234, 'email@example.com', 'Data Received'),
+            ('DL1CAB0003', None, 'email@example.com', 'Data Received'),
+            ('DL1CAB0003', 1234, None, 'Data Received'),
+            ('DL1CAB0003', 1234, 'email@example.com', None),
+        ]
+    )
+    def test_webhook_handler_exceptions(self, registration_no, user_car_model_id, inspector_email, event):
+        data = {'appointment_id': registration_no, 'user_car_model_id': user_car_model_id, 'inspector_email': inspector_email, 'event': event}
+        with pytest.raises(CarpmApiException) as exc_info:
+            handle_webhook(data, {'INSPECTION_COMPLETE': self.on_inspection, 'REPORT_GENERATED': self.on_report, 'REPORT_FAILED': self.on_report_failed})
+        assert exc_info.value.__str__() == CarpmApiException(400, description='registration_no, user_car_model_id, inspector email and event is required').__str__()
 
 
 def test_no_replacementmap_return():
@@ -130,6 +144,7 @@ def test_no_replacementmap_return():
     }
     converted_report = convert_format(original_report, None)
     assert converted_report == expected_report
+
 
 def test_with_replacementmap_return():
     original_report = {

@@ -7,7 +7,8 @@ from attrdict import AttrDict
 
 class CarpmApiException(Exception):
 
-    def __init__(self, status):
+    def __init__(self, status, **kwargs):
+        description = kwargs.get('description', None)
         description_map = {
             400: "Bad Request",
             401: "Your Access Token is wrong/expired",
@@ -21,7 +22,7 @@ class CarpmApiException(Exception):
             503: "Service Unavailable"
         }
         self.status = status
-        self.description = description_map[status]
+        self.description = description_map[status] if description is None else description
         super(CarpmApiException, self).__init__(self.description)
 
     def to_dict(self):
@@ -105,13 +106,18 @@ class CarpmClient(object):
         inspector_email = (data.get('inspector_email') or None)
         event = (data.get('event') or None)
         registration_no = (data.get('appointment_id') or None)
-
+        details = {
+            "user_car_model_id": user_car_model_id,
+            "inspector_email": inspector_email,
+            "event": event,
+            "registration_no": registration_no
+        }
         if registration_no is None or user_car_model_id is None or inspector_email is None or event is None:
-            raise CarpmApiException(400)
+            raise CarpmApiException(400, description='registration_no, user_car_model_id, inspector email and event is required')
 
         if event == "Report Generation Successful" and "REPORT_GENERATED" in method_dict:
-            method_dict["REPORT_GENERATED"](inspector_email, registration_no, user_car_model_id)
+            method_dict["REPORT_GENERATED"](details)
         elif event == "Report Generation Failed" and "REPORT_FAILED" in method_dict:
-            method_dict["REPORT_FAILED"](inspector_email, registration_no)
+            method_dict["REPORT_FAILED"](details)
         elif event == "Data Received" and "INSPECTION_COMPLETE" in method_dict:
-            method_dict["INSPECTION_COMPLETE"](inspector_email, registration_no)
+            method_dict["INSPECTION_COMPLETE"](details)
