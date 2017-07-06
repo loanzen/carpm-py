@@ -65,9 +65,9 @@ class CarpmClient(object):
 
         return AttrDict(carpm_report_new)
 
-    def get_reports_list(self):
+    def get_reports_list(self, from_date, to_date):
 
-        url = "https://carpm.in/user_car_models/get_reports"
+        url = "https://carpm.in/user_car_models/get_reports?from_date={0}&to_date={1}".format(from_date,to_date)
 
         headers = {
             'content-type': "application/json",
